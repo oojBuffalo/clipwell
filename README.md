@@ -38,13 +38,13 @@ The script builds and opens `dist/Clipwell.app`. Look for the clipboard icon in 
 | Command–F | History | Focus the search field |
 | Escape | Panel | Go back from a subpage or close history |
 
-The keyboard icon at the bottom of the panel opens the shortcut guide. It also shows which global shortcuts are unavailable on your Mac.
+Click the pin beside the search field to show only pinned clips. Open **More options (···) → Keyboard Shortcuts** for the shortcut guide, including any global shortcuts unavailable on your Mac.
 
 ## History and privacy
 
 Clipwell stores the latest **100 unpinned clips** plus anything you pin. Copying the same text again moves it to the top and preserves its pin. Clips and pause state persist across launches in `~/Library/Application Support/Clipwell/history.json`, a plain-text file readable by your macOS account.
 
-Clipwell skips content that the source app marks confidential or transient. Click **Listening** to pause before copying sensitive text from an app that leaves it unmarked. **Clear Unpinned History** in the panel menu keeps your pins and the current clipboard.
+Clipwell skips content that the source app marks confidential or transient. Choose **More options (···) → Pause History** before copying sensitive text from an app that leaves it unmarked. Click **Paused** to resume. **Clear Unpinned History** in the same menu keeps your pins and the current clipboard.
 
 ## Contributing
 

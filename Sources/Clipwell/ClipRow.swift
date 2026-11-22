@@ -8,67 +8,52 @@ struct ClipRow: View {
     let remove: () -> Void
     @State private var hovered = false
 
-    private var website: URL? {
-        guard entry.text.hasPrefix("https://") || entry.text.hasPrefix("http://"),
-              entry.text.utf8.count < 2048,
-              entry.text.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
-              let url = URL(string: entry.text), url.host != nil else { return nil }
-        return url
-    }
-
     private var preview: String {
         let start = entry.text.drop(while: \.isWhitespace).prefix(180)
         return start.isEmpty ? "Whitespace" : start.split(whereSeparator: \.isNewline).joined(separator: " ")
     }
 
     var body: some View {
-        let site = website
-        HStack(spacing: 8) {
+        let showsPin = hovered || isSelected || entry.isPinned
+        HStack(spacing: 3) {
             Button(action: copy) {
-                HStack(spacing: 11) {
-                    Image(systemName: site == nil ? "text.alignleft" : "link")
-                        .font(.system(size: 15, weight: .medium))
-                        .frame(width: 31, height: 33)
-                        .foregroundStyle(site == nil ? Ink.secondary : Ink.accent)
-                        .background(site == nil ? Ink.inset : Ink.tint, in: RoundedRectangle(cornerRadius: 7))
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(verbatim: preview)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Ink.text)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        HStack(spacing: 5) {
-                            Text(site?.host ?? "Plain text").lineLimit(1)
-                            Text("·")
-                            Text(entry.createdAt, format: .dateTime.hour().minute())
-                        }
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(Ink.secondary)
-                    }
-                    Spacer(minLength: 0)
+                HStack(spacing: 10) {
+                    Text(verbatim: preview)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(entry.createdAt, format: .dateTime.hour().minute())
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
                 }
+                .padding(.leading, 8)
                 .frame(maxHeight: .infinity)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
             .accessibilityHint("Copies this clip and closes history")
+            .accessibilityAction(named: entry.isPinned ? "Unpin clip" : "Pin clip", pin)
+            .accessibilityAction(named: "Delete clip", remove)
+
             Button(action: pin) {
                 Image(systemName: entry.isPinned ? "pin.fill" : "pin")
-                    .font(.system(size: 11))
-                    .foregroundStyle(entry.isPinned ? Ink.accent : Ink.secondary)
-                    .frame(width: 25, height: 28)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 28)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .opacity(hovered || isSelected || entry.isPinned ? 1 : 0)
+            .opacity(showsPin ? 1 : 0)
+            .allowsHitTesting(showsPin)
             .accessibilityLabel(entry.isPinned ? "Unpin clip" : "Pin clip")
             .help(entry.isPinned ? "Unpin clip" : "Pin clip")
         }
-        .padding(.horizontal, 9)
-        .frame(height: 54)
-        .background(isSelected ? Ink.tint.opacity(0.84) : hovered ? Ink.inset : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 8))
+        .font(.body)
+        .frame(height: 30)
+        .background(Color.primary.opacity(isSelected ? 0.10 : hovered ? 0.05 : 0),
+                    in: RoundedRectangle(cornerRadius: 5))
         .onHover { hovered = $0 }
         .contextMenu {
             Button("Copy", action: copy)

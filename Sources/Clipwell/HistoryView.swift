@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct HistoryView: View {
+    static let panelSize = CGSize(width: 368, height: 354)
+
     @ObservedObject var store: HistoryStore
     @ObservedObject var session: PanelSession
     let dismiss: () -> Void
@@ -19,55 +21,69 @@ struct HistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
             switch session.screen {
             case .history:
-                searchField
-                filters
-                Rectangle().fill(Ink.line).frame(height: 1)
+                toolbar
+                Divider()
                 historyList
-                footer
+                if copyFailed {
+                    Text("Couldn’t copy. Try again.")
+                        .font(.callout)
+                        .padding(6)
+                }
             case .shortcuts:
                 ShortcutGuide(unavailable: session.unavailableShortcuts) { _ = session.goBack() }
             case .confirmClear:
                 clearConfirmation
             }
         }
-        .foregroundStyle(Ink.text)
-        .frame(width: 428, height: 534)
-        .background(Ink.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .frame(width: Self.panelSize.width, height: Self.panelSize.height)
+        .background(Color(nsColor: .windowBackgroundColor))
         .overlay {
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                .strokeBorder(Ink.line.opacity(0.9), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 11)
+                .strokeBorder(.quaternary, lineWidth: 1)
                 .allowsHitTesting(false)
         }
-        .tint(Ink.accent)
+        .clipShape(RoundedRectangle(cornerRadius: 11))
         .onReceive(session.commands, perform: handle)
     }
 
-    private var header: some View {
-        HStack(spacing: 9) {
-            BrandMark().frame(width: 31, height: 31)
-            Text("Clipwell")
-                .font(.system(size: 20, weight: .semibold))
-                .tracking(-0.8)
-            Spacer()
-            Button(action: store.togglePause) {
-                HStack(spacing: 5) {
-                    Circle().fill(store.isPaused ? Color.orange : Ink.accent)
-                        .frame(width: 5, height: 5)
-                    Text(store.isPaused ? "Paused" : "Listening")
-                        .font(.system(size: 11, weight: .medium))
+    private var toolbar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            TextField(session.pinnedOnly ? "Search pinned clips" : "Search clips", text: $session.query)
+                .textFieldStyle(.plain)
+                .focused($searchFocused)
+            if !session.query.isEmpty {
+                Button {
+                    session.query = ""
+                    searchFocused = true
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
                 }
-                .foregroundStyle(store.isPaused ? Ink.secondary : Ink.accent)
-                .padding(.horizontal, 8)
-                .frame(height: 22)
-                .background(store.isPaused ? Ink.inset : Ink.tint, in: Capsule())
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Clear search")
+            }
+            if store.isPaused {
+                Button("Paused", action: store.togglePause)
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .help("Resume clipboard history")
+                    .accessibilityHint("Resumes clipboard history")
+            }
+            Button { session.setFilter(!session.pinnedOnly) } label: {
+                Image(systemName: session.pinnedOnly ? "pin.fill" : "pin")
+                    .frame(width: 24, height: 28)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(store.isPaused ? "Resume clipboard history" : "Pause clipboard history")
-            .accessibilityHint(store.isPaused ? "Resumes clipboard history" : "Pauses clipboard history")
+            .foregroundStyle(session.pinnedOnly ? .primary : .secondary)
+            .accessibilityLabel("Pinned clips only")
+            .accessibilityAddTraits(session.pinnedOnly ? .isSelected : [])
+            .help(session.pinnedOnly ? "Show all clips (⌘1)" : "Show pinned clips (⌘2)")
             Menu {
                 Button("Keyboard Shortcuts") { session.screen = .shortcuts }
                 Button(store.isPaused ? "Resume History" : "Pause History", action: store.togglePause)
@@ -77,83 +93,19 @@ struct HistoryView: View {
                 Button("Quit Clipwell", action: quit)
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 13, weight: .semibold))
-                    .frame(width: 26, height: 26)
+                    .frame(width: 24, height: 28)
                     .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
+            .foregroundStyle(.secondary)
             .fixedSize()
             .accessibilityLabel("More options")
             .help("More options")
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 16)
-        .padding(.bottom, 14)
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Ink.secondary)
-            TextField("Search your clips", text: $session.query)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .focused($searchFocused)
-                .accessibilityLabel("Search your clips")
-            if session.query.isEmpty {
-                Keycap(key: "⌘ F").accessibilityHidden(true)
-            } else {
-                Button {
-                    session.query = ""
-                    searchFocused = true
-                } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(Ink.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
-            }
-        }
-        .padding(.horizontal, 11)
-        .frame(height: 38)
-        .background(Ink.inset, in: RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(searchFocused ? Ink.accent.opacity(0.5) : Ink.line, lineWidth: 0.8)
-                .allowsHitTesting(false)
-        }
-        .padding(.horizontal, 18)
-    }
-
-    private var filters: some View {
-        HStack(spacing: 5) {
-            filter("All clips", symbol: "square.stack", pinned: false)
-            filter("Pinned", symbol: "pin", pinned: true)
-            Spacer()
-            let count = visibleEntries.count
-            Text("\(count) \(count == 1 ? "clip" : "clips")")
-                .font(.system(size: 11))
-                .foregroundStyle(Ink.secondary)
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
-    }
-
-    private func filter(_ name: String, symbol: String, pinned: Bool) -> some View {
-        let active = pinned == session.pinnedOnly
-        return Button { session.setFilter(pinned) } label: {
-            Label(name, systemImage: symbol)
-                .labelStyle(.titleAndIcon)
-                .font(.system(size: 11.5, weight: active ? .semibold : .medium))
-                .foregroundStyle(active ? Ink.accent : Ink.secondary)
-                .padding(.horizontal, 10)
-                .frame(height: 26)
-                .background(active ? Ink.tint : Color.clear, in: RoundedRectangle(cornerRadius: 6))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(active ? .isSelected : [])
-        .help(pinned ? "Pinned clips (⌘2)" : "All clips (⌘1)")
+        .padding(.leading, 15)
+        .padding(.trailing, 10)
+        .frame(height: 44)
     }
 
     @ViewBuilder private var historyList: some View {
@@ -168,9 +120,8 @@ struct HistoryView: View {
                         ForEach(Array(entries.enumerated()), id: \.element.id) { i, entry in
                             if i == 0 || !Calendar.current.isDate(entry.createdAt, inSameDayAs: entries[i - 1].createdAt) {
                                 Text(Self.dayLabel(entry.createdAt))
-                                    .font(.system(size: 9.5, weight: .semibold))
-                                    .tracking(1.1)
-                                    .foregroundStyle(Ink.secondary)
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(.secondary)
                                     .padding(.leading, 9)
                                     .padding(.top, 10)
                                     .padding(.bottom, 4)
@@ -201,43 +152,18 @@ struct HistoryView: View {
     }
 
     private static func dayLabel(_ date: Date) -> String {
-        if Calendar.current.isDateInToday(date) { return "TODAY" }
-        if Calendar.current.isDateInYesterday(date) { return "YESTERDAY" }
-        return date.formatted(date: .abbreviated, time: .omitted).uppercased()
-    }
-
-    private var footer: some View {
-        HStack(spacing: 5) {
-            if copyFailed {
-                Text("Couldn’t copy. Try again.").foregroundStyle(Ink.text)
-            } else if visibleEntries.isEmpty {
-                Keycap(key: "⌃ ⌥ V").accessibilityLabel("Control Option V")
-                Text("Open history")
-            } else {
-                HStack(spacing: 2) { Keycap(key: "↑"); Keycap(key: "↓") }
-                Text("Navigate").padding(.trailing, 8)
-                Keycap(key: "↵")
-                Text("Copy")
-            }
-            Spacer()
-            IconButton(symbol: "keyboard", label: "Keyboard shortcuts") { session.screen = .shortcuts }
-        }
-        .font(.system(size: 10.5))
-        .foregroundStyle(Ink.secondary)
-        .padding(.horizontal, 18)
-        .frame(height: 39)
-        .background(Ink.inset.opacity(0.6))
-        .overlay(alignment: .top) { Rectangle().fill(Ink.line).frame(height: 1) }
+        if Calendar.current.isDateInToday(date) { return "Today" }
+        if Calendar.current.isDateInYesterday(date) { return "Yesterday" }
+        return date.formatted(date: .abbreviated, time: .omitted)
     }
 
     private var clearConfirmation: some View {
         VStack(spacing: 12) {
             Spacer()
-            Image(systemName: "trash").font(.system(size: 27)).foregroundStyle(Ink.secondary)
             Text("Clear unpinned history?").font(.headline)
             Text("This deletes all unpinned clips from Clipwell.\nYour pinned clips and current clipboard are kept.")
                 .font(.system(size: 12.5))
-                .foregroundStyle(Ink.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             HStack {
                 Button("Cancel") { _ = session.goBack() }

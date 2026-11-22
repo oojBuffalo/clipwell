@@ -32,7 +32,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private func makePanel() -> HistoryPanel {
         let panel = HistoryPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 428, height: 534),
+            contentRect: NSRect(origin: .zero, size: HistoryView.panelSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered, defer: false
         )
